@@ -1,5 +1,5 @@
 import scrapy
-from pprint import pprint
+import locale
 
 
 class BlogSpider(scrapy.Spider):
@@ -13,23 +13,38 @@ class BlogSpider(scrapy.Spider):
             line = row.css("td *::text").extract()
             valFromTitle(line, "Competência")
             valFromTitle(line, "Código ISIN")
-            # clean = [l.encode("utf-8").strip() for l in line]
-            # print(clean[0].decode('ascii') + ": " + clean[1].decode('ascii'))
-            # print(u' '.join(clean).encode('utf-8').strip())
-            # print(u"|".join([l.strip() for l in line]))
-            # if len(line) >= 2:
-            #     print(f"{line[0].strip()}\t|\t{line[1].strip()}")
-            # else:
-            #     print(f"{line[0].strip()}")
+            valFromTitle(line, "Número de Cotas Emitidas")
+            valFromTitle(line, "Ativo – R$")
+            valFromTitle(line, "Total investido")
+            valFromTitle(line, "Direitos reais sobre bens imóveis")
+            valFromTitle(line, "Valores a Receber")
+            valFromTitle(line, "Contas a Receber por Aluguéis")
+            valFromTitle(line, "Total do passivo")
+            valFromTitle(line, "Patrimônio Líquido – R$")
+            valFromTitle(line, "Rendimentos a distribuir")
+            valFromTitle(line, "Taxa de administração a pagar")
+            valFromTitle(line, "Taxa de performance a pagar")
 
 
 def valFromTitle(row, title):
     """
     title_str: title string
     """
+    # locale.setlocale(locale.LC_ALL, "pt_BR.UTF8")
     for i, val in enumerate(row):
+        if title == "Ativo – R$" and title in val and i + 3 < len(row):
+            print(f"{row[i].strip():30.30s} | {row[i+3].strip()}")
+            try:
+                return locale.atoi(row[i + 3].strip())
+            except ValueError:
+                return 0
+
         if title in val and i + 1 < len(row):
-            print(f"{row[i].strip()}\t|\t{row[i+1].strip()}")
+            print(f"{row[i].strip():30.30s} | {row[i+1].strip()}")
+            try:
+                return locale.atoi(row[i + 1].strip())
+            except ValueError:
+                return 0
 
 
 # Competência
