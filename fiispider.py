@@ -8,6 +8,8 @@ import locale
 # dataInicial=01/01/2020&
 # dataFinal=23/12/2020&_=1608729063621
 
+locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
+
 
 class FIISpider(scrapy.Spider):
     name = "fiispider"
@@ -34,48 +36,56 @@ class FIISpider(scrapy.Spider):
             print(self.start_urls)
 
     def parse(self, response):
-        rendimentos = 0
-        valor_a_receber = 0
-        num_cotas = 0
-        taxa_adm = 0
-        taxa_perf = 0
+        relat = dict(
+            nome={"name": "Nome do Fundo", "val": ""},
+            cnpj={"name": "CNPJ do Fundo", "val": ""},
+            competencia={"name": "Competência", "val": ""},
+            cod={"name": "Código ISIN", "val": ""},
+            num_cotistas={"name": "Número de cotistas", "val": 0},
+            num_cotas={"name": "Número de Cotas Emitidas", "val": 0},
+            ativo={"name": "Ativo – R$", "val": 0},
+            invest_total={"name": "Total investido", "val": 0},
+            invest_imov={"name": "Direitos reais sobre bens imóveis", "val": 0},
+            valor_a_receber={"name": "Valores a Receber", "val": 0},
+            alugueis={"name": "Contas a Receber por Aluguéis", "val": 0},
+            passivo={"name": "Total do passivo", "val": 0},
+            pl={"name": "Patrimônio Líquido – R$", "val": 0},
+            rendimentos={"name": "Rendimentos a distribuir", "val": 0},
+            taxa_adm={"name": "Taxa de administração a pagar", "val": 0},
+            taxa_perf={"name": "Taxa de performance a pagar", "val": 0},
+        )
 
-        print("\n-----\n")
+        print("\n-----+\n")
 
         for row in response.xpath("//tr"):
             line = row.css("td *::text").extract()
 
-            valFromTitle(line, "Nome do Fundo")
-            valFromTitle(line, "CNPJ do Fundo")
-            valFromTitle(line, "Competência")
-            valFromTitle(line, "Código ISIN")
-            valFromTitle(line, "Número de cotistas")
-            if num_cotas == 0:
-                num_cotas = valFromTitle(line, "Número de Cotas Emitidas")
-            valFromTitle(line, "Ativo – R$")
-            valFromTitle(line, "Total investido")
-            valFromTitle(line, "Direitos reais sobre bens imóveis")
-            if valor_a_receber == 0:
-                valor_a_receber = valFromTitle(line, "Valores a Receber")
-            valFromTitle(line, "Contas a Receber por Aluguéis")
-            valFromTitle(line, "Total do passivo")
-            valFromTitle(line, "Patrimônio Líquido – R$")
-            if rendimentos == 0:
-                rendimentos = valFromTitle(line, "Rendimentos a distribuir")
-            if taxa_adm == 0:
-                taxa_adm = valFromTitle(line, "Taxa de administração a pagar")
-            if taxa_perf == 0:
-                taxa_perf = valFromTitle(line, "Taxa de performance a pagar")
+            for item in relat:
+                ret = valFromTitle(line, relat[item]["name"])
+                if ret is not None:
+                    relat[item]["val"] = ret
 
-        if num_cotas != 0:
-            print(f"{'Aluguéis/Cota':30.30s} | {valor_a_receber/num_cotas:0.3f}")
-            print(f"{'Rendimentos/Cota':30.30s} | {rendimentos/num_cotas:0.3f}")
-            print(f"{'Taxas/Cota':30.30s} | {(taxa_adm+taxa_perf)/ num_cotas:0.3f}")
-
-        if rendimentos != 0:
+        if relat["num_cotas"]["val"] != 0:
             print(
-                f"{'Taxas/Rendimentos':30.30s} | {100*(taxa_adm+taxa_perf)/ rendimentos:0.3f}%"
+                f"{'Aluguéis/Cota':30.30s} | {relat['valor_a_receber']['val']/relat['num_cotas']['val']:0.3f}"
             )
+            print(
+                f"{'Rendimentos/Cota':30.30s} | {relat['rendimentos']['val']/relat['num_cotas']['val']:0.3f}"
+            )
+            print(
+                f"{'Taxas/Cota':30.30s} | {(relat['taxa_adm']['val']+relat['taxa_perf']['val'])/ relat['num_cotas']['val']:0.3f}"
+            )
+
+        if relat["rendimentos"]["val"] != 0:
+            print(
+                f"{'Taxas/Rendimentos':30.30s} | {100*(relat['taxa_adm']['val']+relat['taxa_perf']['val'])/ relat['rendimentos']['val']:0.3f}%"
+            )
+
+        for item in relat.values():
+            if type(item["val"]) is float or type(item["val"]) is int:
+                print(locale.format("%.3f", item["val"], True), end=";")
+            else:
+                print(f"{item['val']}", end=";")
 
 
 def valFromTitle(row, title):
@@ -83,7 +93,6 @@ def valFromTitle(row, title):
     title_str: title string
     """
     # locale.setlocale(locale.LC_ALL, "Portuguese_Brazil.1252")
-    locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
     for i, val in enumerate(row):
         if title == "Ativo – R$" and title in val and i + 3 < len(row):
             v = row[i + 3].strip()
@@ -101,7 +110,7 @@ def valFromTitle(row, title):
             except Exception:
                 return v
 
-    return ""
+    return None
 
 
 # Competência
