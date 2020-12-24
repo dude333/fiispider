@@ -1,14 +1,37 @@
 import scrapy
 import locale
 
+# https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
+# d=9&s=0&l=10&o[0][dataEntrega]=desc&tipoFundo=1&
+# cnpjFundo=01201140000190&
+# idCategoriaDocumento=6&idTipoDocumento=40&idEspecieDocumento=0&situacao=A&
+# dataInicial=01/01/2020&
+# dataFinal=23/12/2020&_=1608729063621
 
-class BlogSpider(scrapy.Spider):
-    name = "blogspider"
-    start_urls = [
-        "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=131924",
-        "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=127183",
-        "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=133113",
-    ]
+
+class FIISpider(scrapy.Spider):
+    name = "fiispider"
+
+    custom_settings = {"CONCURRENT_REQUESTS": "1"}
+
+    def __init__(self, *args, **kwargs):
+        super(FIISpider, self).__init__(*args, **kwargs)
+
+        ids = kwargs.get("ids")
+        if ids is None:
+            self.start_urls = [
+                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=131924",
+                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=127183",
+                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=133113",
+            ]
+        else:
+            self.start_urls = []
+            for id in ids.split(","):
+                if len(id) >= 4:
+                    self.start_urls.append(
+                        f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
+                    )
+            print(self.start_urls)
 
     def parse(self, response):
         rendimentos = 0
