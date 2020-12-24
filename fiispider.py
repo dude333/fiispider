@@ -86,20 +86,22 @@ def valFromTitle(row, title):
     locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
     for i, val in enumerate(row):
         if title == "Ativo – R$" and title in val and i + 3 < len(row):
-            print(f"{row[i].strip():30.30s} | {row[i+3].strip()}")
+            v = row[i + 3].strip()
+            print(f"{row[i].strip():30.30s} | {v}")
             try:
-                return locale.atof(row[i + 3].strip())
+                return locale.atof(v)
             except Exception:
-                return 0.0
+                return v
 
         if title in val and i + 1 < len(row):
-            print(f"{row[i].strip():30.30s} | {row[i+1].strip()}")
+            v = row[i + 1].strip()
+            print(f"{row[i].strip():30.30s} | {v}")
             try:
-                return locale.atof(row[i + 1].strip())
+                return locale.atof(v)
             except Exception:
-                return 0.0
+                return v
 
-    return 0.0
+    return ""
 
 
 # Competência
