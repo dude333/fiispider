@@ -1,5 +1,6 @@
 import scrapy
 import locale
+from reportids import getIDs
 
 # https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
 # d=9&s=0&l=10&o[0][dataEntrega]=desc&tipoFundo=1&
@@ -19,8 +20,8 @@ class FIISpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(FIISpider, self).__init__(*args, **kwargs)
 
-        ids = kwargs.get("ids")
-        if ids is None:
+        ids = getIDs(kwargs.get("cnpj"))
+        if ids is None or len(ids) == 0:
             self.start_urls = [
                 "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=131924",
                 "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=127183",
@@ -28,12 +29,10 @@ class FIISpider(scrapy.Spider):
             ]
         else:
             self.start_urls = []
-            for id in ids.split(","):
-                if len(id) >= 4:
-                    self.start_urls.append(
-                        f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
-                    )
-            print(self.start_urls)
+            for id in ids:
+                self.start_urls.append(
+                    f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
+                )
 
     def parse(self, response):
         relat = dict(
@@ -81,7 +80,12 @@ class FIISpider(scrapy.Spider):
                 f"{'Taxas/Rendimentos':30.30s} | {100*(relat['taxa_adm']['val']+relat['taxa_perf']['val'])/ relat['rendimentos']['val']:0.3f}%"
             )
 
-        for item in relat.values():
+        for key, item in relat.items():
+            if key == "nome" or key == "cnpj":
+                continue
+            if key == "cod":
+                print(item["val"][2:6] + "11", end=";")
+                continue
             if type(item["val"]) is float or type(item["val"]) is int:
                 print(locale.format("%.3f", item["val"], True), end=";")
             else:
