@@ -100,6 +100,7 @@ class FIISpider(scrapy.Spider):
                     "reajuste",
                     "vacância",
                     "inadimplência",
+                    f(relat["pl"]["val"]),
                     f(relat["ativo"]["val"]),
                     f(relat["invest_imov"]["val"]),
                     f(relat["invest_total"]["val"] - relat["invest_imov"]["val"]),
@@ -107,7 +108,6 @@ class FIISpider(scrapy.Spider):
                     f(relat["valor_a_receber"]["val"]),
                     f(relat["alugueis"]["val"]),
                     f(relat["passivo"]["val"]),
-                    f(relat["pl"]["val"]),
                     f(relat["rendimentos"]["val"]),
                     f(relat["taxa_adm"]["val"] + relat["taxa_perf"]["val"]),
                 ]
