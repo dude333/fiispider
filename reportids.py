@@ -4,7 +4,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 
-def getIDs(cnpj, n=4):
+def getMonthlyIDs(cnpj, n=4):
     if cnpj is None or len(cnpj) < 14:
         return None
 

@@ -1,6 +1,6 @@
 import scrapy
 import locale
-from reportids import getIDs
+from reportids import getMonthlyIDs
 import re
 
 # https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
@@ -22,20 +22,17 @@ class FIISpider(scrapy.Spider):
         super(FIISpider, self).__init__(*args, **kwargs)
 
         self.csv = []
+        self.run_num = 0
+        self.cnpj = kwargs.get("cnpj")
+        self.n = kwargs.get("n")
 
-        ids = getIDs(kwargs.get("cnpj"), kwargs.get("n"))
-        if ids is None or len(ids) == 0:
-            self.start_urls = [
-                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=131924",
-                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=127183",
-                "https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=133113",
-            ]
-        else:
-            self.start_urls = []
-            for id in ids:
-                self.start_urls.append(
-                    f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
-                )
+    def start_requests(self):
+        monthlyIDs = getMonthlyIDs(self.cnpj, self.n)
+        for id in monthlyIDs:
+            yield scrapy.Request(
+                f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
+                self.parse,
+            )
 
     def closed(self, reason):
         print("\n*****")
@@ -113,6 +110,24 @@ class FIISpider(scrapy.Spider):
                 ]
             )
         )
+
+        self.run_num += 1
+        if self.run_num == len(self.start_urls):
+            print("*** Dividendos ***")
+
+            cod = relat["cod"]["val"]
+            yield scrapy.Request(
+                f"http://bvmf.bmfbovespa.com.br/Fundos-Listados/FundosListadosDetalhe.aspx?"
+                f"Sigla={cod}&tipoFundo=Imobiliario&aba=abaEventosCorporativos&idioma=pt-br",
+                callback=self.parseDividends,
+            )
+
+    def parseDividends(self, response):
+        table = response.xpath(
+            "//table[@id='ctl00_contentPlaceHolderConteudo_ucEventosCorporativos_grdDividendo_ctl01']//tr"
+        )
+        for row in table:
+            print(row.css("td *::text").extract().strip())
 
 
 def valFromTitle(row, title):
