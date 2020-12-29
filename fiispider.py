@@ -1,6 +1,6 @@
 import scrapy
 import locale
-from reportids import getMonthlyIDs
+from reportids import getMonthlyIDs, getDividendIDs
 import re
 
 # https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
@@ -21,8 +21,8 @@ class FIISpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(FIISpider, self).__init__(*args, **kwargs)
 
-        self.csv = []
-        self.run_num = 0
+        self.monthly = []
+        self.dividends = []
         self.cnpj = kwargs.get("cnpj")
         self.n = kwargs.get("n")
 
@@ -34,9 +34,17 @@ class FIISpider(scrapy.Spider):
                 self.parse,
             )
 
+        dividendIDs = getDividendIDs(self.cnpj, self.n)
+        for id in reversed(dividendIDs):
+            yield scrapy.Request(
+                f"https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id={id}",
+                self.parseDividends,
+            )
+
     def closed(self, reason):
         print("\n*****")
-        print("\n".join(self.csv))
+        print("\n".join(self.monthly))
+        print("\n".join(self.dividends))
 
     def parse(self, response):
         relat = dict(
@@ -85,8 +93,7 @@ class FIISpider(scrapy.Spider):
                 f"{'Taxas/Rendimentos':30.30s} | {100*(relat['taxa_adm']['val']+relat['taxa_perf']['val'])/ relat['rendimentos']['val']:0.3f}%"
             )
 
-        # Print CSV
-        self.csv.append(
+        self.monthly.append(
             ";".join(
                 [
                     relat["competencia"]["val"],
@@ -111,23 +118,33 @@ class FIISpider(scrapy.Spider):
             )
         )
 
-        self.run_num += 1
-        if self.run_num == len(self.start_urls):
-            print("*** Dividendos ***")
-
-            cod = relat["cod"]["val"]
-            yield scrapy.Request(
-                f"http://bvmf.bmfbovespa.com.br/Fundos-Listados/FundosListadosDetalhe.aspx?"
-                f"Sigla={cod}&tipoFundo=Imobiliario&aba=abaEventosCorporativos&idioma=pt-br",
-                callback=self.parseDividends,
-            )
-
     def parseDividends(self, response):
-        table = response.xpath(
-            "//table[@id='ctl00_contentPlaceHolderConteudo_ucEventosCorporativos_grdDividendo_ctl01']//tr"
+        relat = dict(
+            provento={"name": "Valor do provento por cota", "val": ""},
+            mes={"name": "Período de referência", "val": ""},
+            ano={"name": "Ano", "val": ""},
         )
-        for row in table:
-            print(row.css("td *::text").extract().strip())
+
+        print("\n-----\n")
+
+        for row in response.xpath("//tr"):
+            line = row.css("td *::text").extract()
+
+            for item in relat:
+                ret = valFromTitle(line, relat[item]["name"])
+                if ret is not None:
+                    if item == "mes":
+                        ret = fixMonth(ret)
+                    relat[item]["val"] = ret
+
+        self.dividends.append(
+            ";".join(
+                [
+                    f"{relat['mes']['val']:02d}/{relat['ano']['val']:04.0f}",
+                    f(relat["provento"]["val"]),
+                ]
+            )
+        )
 
 
 def valFromTitle(row, title):
@@ -158,3 +175,23 @@ def f(number):
         return str(locale.format("%.3f", number, True))
     except Exception:
         return str(number)
+
+
+def fixMonth(month):
+    if type(month) == int or type(month) == float or month.isnumeric():
+        return int(month)
+
+    return [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro",
+    ].index(month.lower()) + 1

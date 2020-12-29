@@ -81,6 +81,7 @@ def getDividendIDs(cnpj, n=4):
 
     response = requests.get(
         "http://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados",
+        headers=headers,
         params=params,
         verify=False,
     )
