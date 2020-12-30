@@ -21,8 +21,8 @@ class FIISpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super(FIISpider, self).__init__(*args, **kwargs)
 
-        self.monthly = []
-        self.dividends = []
+        self.monthly = dict()
+        self.dividends = dict()
         self.cnpj = kwargs.get("cnpj")
         self.n = kwargs.get("n")
 
@@ -43,8 +43,14 @@ class FIISpider(scrapy.Spider):
 
     def closed(self, reason):
         print("\n*****")
-        print("\n".join(self.monthly))
-        print("\n".join(self.dividends))
+        # print("\n".join(self.monthly))
+        # print("\n".join(self.dividends))
+
+        for competencia in self.monthly:
+            provento = "-"
+            if competencia in self.dividends:
+                provento = self.dividends[competencia]
+            print(competencia, ";".join(self.monthly[competencia]), provento, sep=";")
 
     def parse(self, response):
         relat = dict(
@@ -93,30 +99,25 @@ class FIISpider(scrapy.Spider):
                 f"{'Taxas/Rendimentos':30.30s} | {100*(relat['taxa_adm']['val']+relat['taxa_perf']['val'])/ relat['rendimentos']['val']:0.3f}%"
             )
 
-        self.monthly.append(
-            ";".join(
-                [
-                    relat["competencia"]["val"],
-                    relat["cod"]["val"][2:6] + "11",
-                    "abl",
-                    f(relat["num_cotas"]["val"]),
-                    f(relat["num_cotistas"]["val"]),
-                    "reajuste",
-                    "vacância",
-                    "inadimplência",
-                    f(relat["pl"]["val"]),
-                    f(relat["ativo"]["val"]),
-                    f(relat["invest_imov"]["val"]),
-                    f(relat["invest_total"]["val"] - relat["invest_imov"]["val"]),
-                    f(relat["caixa"]["val"]),
-                    f(relat["valor_a_receber"]["val"]),
-                    f(relat["alugueis"]["val"]),
-                    f(relat["passivo"]["val"]),
-                    f(relat["rendimentos"]["val"]),
-                    f(relat["taxa_adm"]["val"] + relat["taxa_perf"]["val"]),
-                ]
-            )
-        )
+        self.monthly[relat["competencia"]["val"]] = [
+            relat["cod"]["val"][2:6] + "11",
+            "abl",
+            f(relat["num_cotas"]["val"]),
+            f(relat["num_cotistas"]["val"]),
+            "reajuste",
+            "vacância",
+            "inadimplência",
+            f(relat["pl"]["val"]),
+            f(relat["ativo"]["val"]),
+            f(relat["invest_imov"]["val"]),
+            f(relat["invest_total"]["val"] - relat["invest_imov"]["val"]),
+            f(relat["caixa"]["val"]),
+            f(relat["valor_a_receber"]["val"]),
+            f(relat["alugueis"]["val"]),
+            f(relat["passivo"]["val"]),
+            f(relat["rendimentos"]["val"]),
+            f(relat["taxa_adm"]["val"] + relat["taxa_perf"]["val"]),
+        ]
 
     def parseDividends(self, response):
         relat = dict(
@@ -137,14 +138,8 @@ class FIISpider(scrapy.Spider):
                         ret = fixMonth(ret)
                     relat[item]["val"] = ret
 
-        self.dividends.append(
-            ";".join(
-                [
-                    f"{relat['mes']['val']:02d}/{relat['ano']['val']:04.0f}",
-                    f(relat["provento"]["val"]),
-                ]
-            )
-        )
+        competencia = f"{relat['mes']['val']:02d}/{relat['ano']['val']:04.0f}"
+        self.dividends[competencia] = f(relat["provento"]["val"])
 
 
 def valFromTitle(row, title):
@@ -181,17 +176,20 @@ def fixMonth(month):
     if type(month) == int or type(month) == float or month.isnumeric():
         return int(month)
 
-    return [
-        "janeiro",
-        "fevereiro",
-        "março",
-        "abril",
-        "maio",
-        "junho",
-        "julho",
-        "agosto",
-        "setembro",
-        "outubro",
-        "novembro",
-        "dezembro",
-    ].index(month.lower()) + 1
+    try:
+        return [
+            "janeiro",
+            "fevereiro",
+            "março",
+            "abril",
+            "maio",
+            "junho",
+            "julho",
+            "agosto",
+            "setembro",
+            "outubro",
+            "novembro",
+            "dezembro",
+        ].index(month.lower()) + 1
+    except ValueError:
+        return fixMonth(month[0:2])
