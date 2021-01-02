@@ -59,9 +59,11 @@ def getDividendIDs(cnpj, n=4):
         "Accept": "application/json",
     }
 
-    n = int(n)
+    # n * 4 pois não é possível filtrar por data e são exibidos proventos do
+    # papel e das novas emissões.
+    n = int(n) * 4
     if n < 0 or n > 24:
-        n = 3
+        n = 4
 
     # https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
     # d=1&s=0&l=10&o[0][dataEntrega]=desc&tipoFundo=1&administrador=22&cnpjFundo=17098794000170&idCategoriaDocumento=0&idTipoDocumento=0&idEspecieDocumento=0&_=1609254186709

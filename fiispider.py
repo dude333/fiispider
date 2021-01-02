@@ -3,13 +3,6 @@ import locale
 from reportids import getMonthlyIDs, getDividendIDs
 import re
 
-# https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?
-# d=9&s=0&l=10&o[0][dataEntrega]=desc&tipoFundo=1&
-# cnpjFundo=01201140000190&
-# idCategoriaDocumento=6&idTipoDocumento=40&idEspecieDocumento=0&situacao=A&
-# dataInicial=01/01/2020&
-# dataFinal=23/12/2020&_=1608729063621
-
 locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
 
 
@@ -43,13 +36,20 @@ class FIISpider(scrapy.Spider):
 
     def closed(self, reason):
         print("\n*****")
-        # print("\n".join(self.monthly))
-        # print("\n".join(self.dividends))
 
         for competencia in self.monthly:
+            cod = self.monthly[competencia][0]  # 0 = codigo
             provento = "-"
             if competencia in self.dividends:
-                provento = self.dividends[competencia]
+                if (
+                    len(self.dividends[competencia]) >= 2
+                    and self.dividends[competencia][0] == cod
+                ):
+                    provento = self.dividends[competencia][1]
+
+            # De código ISIN para código do papel: BRHABTCTF001 => HABT11
+            self.monthly[competencia][0] = self.monthly[competencia][0][2:6] + "11"
+            # Imprime a linha com os itens separados por ";"
             print(competencia, ";".join(self.monthly[competencia]), provento, sep=";")
 
     def parse(self, response):
@@ -100,7 +100,7 @@ class FIISpider(scrapy.Spider):
             )
 
         self.monthly[relat["competencia"]["val"]] = [
-            relat["cod"]["val"][2:6] + "11",
+            relat["cod"]["val"],
             "abl",
             f(relat["num_cotas"]["val"]),
             f(relat["num_cotistas"]["val"]),
@@ -121,6 +121,7 @@ class FIISpider(scrapy.Spider):
 
     def parseDividends(self, response):
         relat = dict(
+            cod={"name": "Código ISIN da cota:", "val": ""},
             provento={"name": "Valor do provento por cota", "val": ""},
             mes={"name": "Período de referência", "val": ""},
             ano={"name": "Ano", "val": ""},
@@ -139,7 +140,10 @@ class FIISpider(scrapy.Spider):
                     relat[item]["val"] = ret
 
         competencia = f"{relat['mes']['val']:02d}/{relat['ano']['val']:04.0f}"
-        self.dividends[competencia] = f(relat["provento"]["val"])
+        self.dividends[competencia] = [
+            relat["cod"]["val"],
+            f(relat["provento"]["val"]),
+        ]
 
 
 def valFromTitle(row, title):
